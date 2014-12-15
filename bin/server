@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+#chmod +x thisfile if permission denied
 require 'socket'
 require 'net/https'
 require 'net/http'
