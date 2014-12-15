@@ -1,12 +1,31 @@
 require 'socket'
 require 'net/https'
+require 'net/http'
 require 'json'
 require 'crack'
 
-def https (uri)
+class String
+  def is_json?
+    !!(self.gsub(/\n| /, '')[0..0]=='{')
+  end
+  def is_xml?
+    !!(self.gsub(/\n| /, '')[0..0]=='<')
+  end
+end
+
+def stringify (object)
+  return object.gsub(/\n| /, '')
+end
+
+def http (uri)
   url = URI.parse(uri)
-  response = Net::HTTP.start(url.host, use_ssl: true, verify_mode: OpenSSL::SSL::VERIFY_NONE) do |http|
-    http.get url.request_uri, 'User-Agent' => 'MyLib v1.2'
+  if uri[0..4]=='https'
+    response = Net::HTTP.start(url.host, use_ssl: true, verify_mode: OpenSSL::SSL::VERIFY_NONE) do |http|
+      http.get url.request_uri, 'User-Agent' => 'MyLib v1.2'
+    end
+  elsif uri[0..3]=='http'
+    http = Net::HTTP.new(url.host, url.port)
+    response = http.request(Net::HTTP::Get.new(url.request_uri))
   end
   case response
   when Net::HTTPRedirection
@@ -14,7 +33,6 @@ def https (uri)
   when Net::HTTPSuccess
     return response.body
   else
-    # response code isn't a 200; raise an exception
     response.error!
   end
 end
@@ -26,12 +44,18 @@ loop do
   #client.puts "Hello! Input is #{request}"
   #method = request.gsub(/\s+/m, ' ').strip.split(" ")[0]
   #client.puts method
-  data = https request.gsub(/\s+/m, ' ').strip.split(" ")[1][1..-1]
-  response = Crack::XML.parse(data.gsub(/\n| /, '')).to_json
+  data = http request.gsub(/\s+/m, ' ').strip.split(" ")[1][1..-1]
+  if data.is_xml?
+    response = Crack::XML.parse(stringify data).to_json
+  elsif data.is_json?
+    response = stringify data
+  else
+    response = '{"result":"no valid response from target"}'
+  end
+
   client.print "HTTP/1.1 200 OK\r\n" +
                "Content-Type: text/plain\r\n" +
                "Access-Control-Allow-Origin: * \r\n" +
-               #"Content-Length: #{response.to_s.bytesize}\r\n" +
                "Connection: close\r\n"
   client.print "\r\n"
   client.print response
