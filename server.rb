@@ -27,14 +27,7 @@ def http (uri)
     http = Net::HTTP.new(url.host, url.port)
     response = http.request(Net::HTTP::Get.new(url.request_uri))
   end
-  case response
-  when Net::HTTPRedirection
-    # repeat the request using response['Location']
-  when Net::HTTPSuccess
-    return response.body
-  else
-    response.error!
-  end
+  return response.body
 end
 
 server = TCPServer.new 2000 # Server bind to port 2000
